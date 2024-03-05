@@ -41,6 +41,19 @@ async def find_device_by_name(device_name):
             return device
     return None
 
+async def periodic_read(client, interval=10):
+    """Periodically reads a characteristic to keep the connection alive."""
+    while client.is_connected:
+        try:
+            # Read the 'Ready' characteristic
+            value = await client.read_gatt_char(CHARACTERISTIC_READY_UUID)
+            print(f"Periodic read of 'Ready' characteristic: {value}")
+        except Exception as e:
+            print(f"Error during periodic read: {e}")
+
+        # Wait for the specified interval before the next read
+        await asyncio.sleep(interval)
+
 async def main():
     global client
     device = await find_device_by_name(DEVICE_NAME)
@@ -60,8 +73,11 @@ async def main():
 
             # Subscribe to other characteristics for notifications
             for uuid, name in CHARACTERISTICS.items():
-                await client.start_notify(uuid, notification_wrapper)
+                await client.start_notify(uuid, lambda s, d: notification_wrapper(s, d))
                 print(f"Subscribed to characteristic {name}")
+
+            # Start periodic read to keep connection alive
+            asyncio.create_task(periodic_read(client))
 
             print("Listening for notifications, press Ctrl+C to exit...")
             await asyncio.Event().wait()  # Wait indefinitely until Ctrl+C is pressed
