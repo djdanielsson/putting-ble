@@ -12,7 +12,7 @@ CHARACTERISTICS = {
     "00000000-0000-1000-8000-00805f9b34f4": "Velocity",
     "00000000-0000-1000-8000-00805f9b34f6": "Stimp",
     "00000000-0000-1000-8000-00805f9b34f2": "BallStopped",
-    # "00000000-0000-1000-8000-00805f9b34f1": "Ready", # 'Ready' is used for writing, not notifying
+    "00000000-0000-1000-8000-00805f9b34f1": "Ready", # 'Ready' is used for writing, not notifying
     # "D079161C-4469-4870-ACEB-3E563875A0B7": "BallState", # IDK what this yet but it's there
 }
 
@@ -25,10 +25,10 @@ async def notification_handler(sender, data, client):
     name = CHARACTERISTICS.get(sender.uuid, "Unknown")
     print(f"Notification from {name}: {data}")
 
-    # If 'PuttMade' notification is received, read the 'Ready' characteristic
-    if name == "PuttMade":
-        ready_value = await client.read_gatt_char(CHARACTERISTIC_READY_UUID)
-        print(f"'Ready' characteristic value: {ready_value}")
+    if name == "Ready" and data == bytearray([0x00]):
+        print("'Ready' characteristic is 0. Setting it to 1 to re-enable data collection.")
+        # Test: Write 1 to 'Ready' characteristic to re-enable data collection
+        await client.write_gatt_char(CHARACTERISTIC_READY_UUID, bytearray([0x01]))
 
 def notification_wrapper(sender, data):
     """Wrapper function to handle notifications."""
@@ -42,10 +42,9 @@ async def find_device_by_name(device_name):
     return None
 
 async def periodic_read(client, interval=10):
-    """Periodically reads a characteristic to keep the connection alive."""
+    """Periodically reads a characteristic to try to keep the connection alive."""
     while client.is_connected:
         try:
-            # Read the 'Ready' characteristic
             value = await client.read_gatt_char(CHARACTERISTIC_READY_UUID)
             print(f"Periodic read of 'Ready' characteristic: {value}")
         except Exception as e:
