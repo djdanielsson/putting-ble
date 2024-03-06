@@ -75,7 +75,7 @@ async def main():
                 await client.start_notify(uuid, lambda s, d: notification_wrapper(s, d))
                 print(f"Subscribed to characteristic {name}")
 
-            # Start periodic read to keep connection alive
+            # Start periodic read of Ready characteristic
             asyncio.create_task(periodic_read(client))
 
             print("Listening for notifications, press Ctrl+C to exit...")
