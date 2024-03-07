@@ -1,3 +1,18 @@
+"""
+This script scans for Bluetooth Low Energy (BLE) devices that match a given name pattern and lists their characteristics, properties, and descriptors.
+
+Usage:
+    python scan.py [device_name_pattern]
+
+Parameters:
+    device_name_pattern (optional): A regular expression pattern to match the BLE device names. Defaults to "^PL2B" if not provided.
+
+The script attempts to find a device matching the pattern within a set number of attempts. Upon successful connection, it lists all services, characteristics (along with their properties), and descriptors (including their values) for the discovered device.
+
+Examples:
+    python scan.py "^PL2B"  # Scans for devices whose names start with 'PL2B'
+"""
+
 import asyncio
 import re
 from bleak import BleakScanner, BleakClient
