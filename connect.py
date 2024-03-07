@@ -1,98 +1,94 @@
 import asyncio
+import json
+import logging
 from bleak import BleakScanner, BleakClient
+from aiomqtt import Client as AsyncMqttClient, MqttError
 
-DEVICE_NAME = "PL2B2118"  # The name of the BLE golf ball device
-CHARACTERISTIC_READY_UUID = "00000000-0000-1000-8000-00805f9b34f1"  # UUID for 'Ready' characteristic
-DATA_TO_WRITE = bytearray([0x01])  # The data to write to 'Ready' characteristic; update as needed beacuse I'm guessing
+# Initialize logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Mapping of characteristic UUIDs to their friendly names
+# Configuration constants
+MQTT_BROKER = "localhost"  # MQTT broker address
+CHARACTERISTIC_READY_UUID = "00000000-0000-1000-8000-00805f9b34f1"  # 'Ready' characteristic UUID
+DATA_TO_WRITE = bytearray([0x01])  # Data to enable notifications
+
+# Mapping of BLE device names to friendly names
+GOLF_BALLS = {
+    "PL2B2118": "golfball1",
+    # Add additional golf balls here as "DEVICE_NAME": "friendly_name"
+}
+
+# BLE characteristics of interest
 CHARACTERISTICS = {
     "00000000-0000-1000-8000-00805f9b34f3": "RollCount",
     "00000000-0000-1000-8000-00805f9b34f8": "PuttMade",
     "00000000-0000-1000-8000-00805f9b34f4": "Velocity",
     "00000000-0000-1000-8000-00805f9b34f6": "Stimp",
     "00000000-0000-1000-8000-00805f9b34f2": "BallStopped",
-    "00000000-0000-1000-8000-00805f9b34f1": "Ready", # 'Ready' is used for writing, not notifying
-    # "D079161C-4469-4870-ACEB-3E563875A0B7": "BallState", # IDK what this yet but it's there
+    "00000000-0000-1000-8000-00805f9b34f1": "Ready"
 }
 
-def on_disconnect(client):
-    print("Disconnected from the device!")
-    loop.stop()
+async def send_to_mqtt(client, topic, message):
+    """Publish a message to an MQTT topic."""
+    try:
+        await client.publish(topic, message)
+        logger.debug(f"Published to MQTT: {topic} - {message}")
+    except MqttError as e:
+        logger.error(f"MQTT error: {e}")
 
-async def notification_handler(sender, data, client):
-    """Simple notification handler which prints the data received."""
-    name = CHARACTERISTICS.get(sender.uuid, "Unknown")
-    print(f"Notification from {name}: {data}")
+async def notification_handler(sender, data, client, mqtt_client, friendly_name):
+    """Handle BLE notifications, publish to MQTT, and manage the Ready characteristic."""
+    characteristic_name = CHARACTERISTICS.get(sender.uuid, "Unknown")
+    message = json.dumps({"characteristic": characteristic_name, "data": list(data)})
+    mqtt_topic = f"golfball/{friendly_name}/{characteristic_name}"
+    
+    logger.info(f"BLE Notification: {message}")
+    await send_to_mqtt(mqtt_client, mqtt_topic, message)
 
-    if name == "Ready" and data == bytearray([0x00]):
-        print("'Ready' characteristic is 0. Setting it to 1 to re-enable data collection.")
-        # Test: Write 1 to 'Ready' characteristic to re-enable data collection
-        await client.write_gatt_char(CHARACTERISTIC_READY_UUID, bytearray([0x01]))
+    if characteristic_name == "Ready" and data == bytearray([0]):
+        logger.info("Ready characteristic is 0, setting it back to 1.")
+        await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
 
-def notification_wrapper(sender, data):
-    """Wrapper function to handle notifications."""
-    asyncio.create_task(notification_handler(sender, data, client))
+def notification_callback(sender, data, client, mqtt_client, friendly_name):
+    """Wrapper for the notification handler to enable asyncio task creation."""
+    asyncio.create_task(notification_handler(sender, data, client, mqtt_client, friendly_name))
+
+async def read_ready_characteristic_periodically(client, interval=5):
+    """Periodically read the Ready characteristic and log its value."""
+    while client.is_connected:
+        value = await client.read_gatt_char(CHARACTERISTIC_READY_UUID)
+        logger.info(f"Ready characteristic value: {value}")
+        await asyncio.sleep(interval)
 
 async def find_device_by_name(device_name):
+    """Discover BLE devices and return the one matching the given name."""
     devices = await BleakScanner.discover()
     for device in devices:
         if device.name == device_name:
             return device
     return None
 
-async def periodic_read(client, interval=10):
-    """Periodically reads a characteristic to try to keep the connection alive."""
-    while client.is_connected:
-        try:
-            value = await client.read_gatt_char(CHARACTERISTIC_READY_UUID)
-            print(f"Periodic read of 'Ready' characteristic: {value}")
-        except Exception as e:
-            print(f"Error during periodic read: {e}")
-
-        # Wait for the specified interval before the next read
-        await asyncio.sleep(interval)
-
 async def main():
-    global client
-    device = await find_device_by_name(DEVICE_NAME)
-    if not device:
-        print(f"Device with name {DEVICE_NAME} not found.")
-        return
+    """Main function to manage BLE connections and handle notifications."""
+    for device_name, friendly_name in GOLF_BALLS.items():
+        device = await find_device_by_name(device_name)
+        if not device:
+            logger.error(f"Device with name {device_name} not found.")
+            continue
 
-    client = BleakClient(device.address, disconnected_callback=on_disconnect)
-    try:
-        await client.connect()
-        if client.is_connected:
-            print(f"Connected to {device.name} with address {device.address}")
-
-            # Write to 'Ready' characteristic to enable notifications
+        async with BleakClient(device.address) as client, AsyncMqttClient(MQTT_BROKER) as mqtt_client:
+            await client.connect()
             await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
-            print(f"Written to 'Ready' characteristic to enable data collection.")
+            initial_ready_value = await client.read_gatt_char(CHARACTERISTIC_READY_UUID)
+            logger.info(f"Initial Ready characteristic value: {initial_ready_value}")
 
-            # Subscribe to other characteristics for notifications
-            for uuid, name in CHARACTERISTICS.items():
-                await client.start_notify(uuid, lambda s, d: notification_wrapper(s, d))
-                print(f"Subscribed to characteristic {name}")
+            for uuid in CHARACTERISTICS:
+                await client.start_notify(uuid, lambda s, d: notification_callback(s, d, client, mqtt_client, friendly_name))
 
-            # Start periodic read of Ready characteristic
-            asyncio.create_task(periodic_read(client))
+            asyncio.create_task(read_ready_characteristic_periodically(client))
+            logger.info(f"{friendly_name} application is running. Press Ctrl+C to exit...")
+            await asyncio.Event().wait()
 
-            print("Listening for notifications, press Ctrl+C to exit...")
-            await asyncio.Event().wait()  # Wait indefinitely until Ctrl+C is pressed
-
-    except KeyboardInterrupt:
-        print("Disconnected by user interruption...")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-    finally:
-        if client.is_connected:
-            await client.disconnect()
-            print("Disconnected from the device.")
-
-# Run the main function
-loop = asyncio.get_event_loop()
-try:
-    loop.run_until_complete(main())
-finally:
-    loop.close()
+if __name__ == "__main__":
+    asyncio.run(main())
