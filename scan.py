@@ -1,63 +1,102 @@
 """
-This script scans for Bluetooth Low Energy (BLE) devices that match a given name pattern and lists their characteristics, properties, and descriptors.
+BLE Device Characteristics Explorer
+
+This script uses the Bleak library to scan for BLE devices that match a specified name pattern,
+then lists all the GATT services, characteristics, and descriptors for the discovered device,
+including their properties and values (if readable). The output is formatted for improved
+human readability.
+
+The script requires a regular expression pattern as an input argument to match the BLE device name.
+If the device is not found within the number of specified attempts, the script exits.
 
 Usage:
-    python scan.py [device_name_pattern]
+    python scan.py <device_name_pattern>
 
-Parameters:
-    device_name_pattern (optional): A regular expression pattern to match the BLE device names. Defaults to "^PL2B" if not provided.
+Arguments:
+    device_name_pattern: A regular expression pattern to match against the names of BLE devices.
 
-The script attempts to find a device matching the pattern within a set number of attempts. Upon successful connection, it lists all services, characteristics (along with their properties), and descriptors (including their values) for the discovered device.
+Example:
+    python scan.py "^PL2B.*" # This will match any device name starting with 'PL2B'.
 
-Examples:
-    python scan.py "^PL2B"  # Scans for devices whose names start with 'PL2B'
+The script will attempt to find the device up to 5 times before giving up. If a device is found,
+it will connect and list all available services, characteristics along with their values if they
+are readable, and descriptors.
+
+Note:
+    This script is intended for educational and diagnostic purposes. It may not work with all
+    BLE devices, and the interpretation of the characteristic values is left to the user.
 """
 
 import asyncio
 import re
+import sys
 from bleak import BleakScanner, BleakClient
 
-async def list_characteristics(device_pattern, attempts=5):
-    found_device = None
+# Mapping of common characteristic UUIDs to human-readable names
+CHARACTERISTIC_NAME_MAP = {
+    "00002a29-0000-1000-8000-00805f9b34fb": "Manufacturer Name String",
+    "00002a24-0000-1000-8000-00805f9b34fb": "Model Number String",
+    "00002a25-0000-1000-8000-00805f9b34fb": "Serial Number String",
+    "00002a27-0000-1000-8000-00805f9b34fb": "Hardware Revision String",
+    "00002a26-0000-1000-8000-00805f9b34fb": "Firmware Revision String",
+    "00002a28-0000-1000-8000-00805f9b34fb": "Software Revision String",
+    "00002a23-0000-1000-8000-00805f9b34fb": "System ID",
+    "00002a2a-0000-1000-8000-00805f9b34fb": "IEEE 11073-20601 Regulatory Certification Data List",
+    "00002a50-0000-1000-8000-00805f9b34fb": "PnP ID",
+    # Add other characteristics as needed
+}
 
-    # Scan for devices and attempt to match with the pattern
+def bytearray_to_string(value):
+    try:
+        return value.decode("utf-8")
+    except UnicodeDecodeError:
+        return value.hex()
+
+async def list_characteristics(device_pattern, attempts=5):
+    if not device_pattern:
+        print("Device name pattern must be provided.")
+        return
+
+    found_device = None
     for attempt in range(1, attempts + 1):
         devices = await BleakScanner.discover()
         for device in devices:
-            if re.match(device_pattern, device.name or ""):
+            if re.search(device_pattern, device.name or "", re.IGNORECASE):
                 found_device = device
                 break
+
         if found_device:
             break
         else:
-            print(f"No devices found on attempt {attempt}/{attempts}. Retrying in 3 seconds...")
+            print(f"No devices found on attempt {attempt}/{attempts}. Retrying...")
             await asyncio.sleep(3)
 
-    # Exit if no devices were found after all attempts
     if not found_device:
-        print(f"No devices found with pattern {device_pattern} after {attempts} attempts.")
+        print(f"No devices found with pattern '{device_pattern}'.")
         return
 
-    # Connect to the device and list characteristics
     async with BleakClient(found_device.address) as client:
         await client.connect()
-        print(f"Connecting to device: {found_device.name} with address {found_device.address}")
-        
-        # Access services directly from the client instance
+        print(f"\nConnected to: {found_device.name} (Address: {found_device.address})\n")
+
         for service in client.services:
-            print(f"\nService: {service}")
+            print(f"Service [{service.uuid}]\n-------------------------")
             for char in service.characteristics:
+                char_name = CHARACTERISTIC_NAME_MAP.get(char.uuid, "Unknown Characteristic")
                 properties = ', '.join(char.properties)
-                print(f"  Characteristic: {char.uuid} - Properties: {properties}")
+                print(f"  - Characteristic [{char.uuid}]: {char_name} (Properties: {properties})")
+                if "read" in char.properties:
+                    value = await client.read_gatt_char(char.uuid)
+                    print(f"    -> Value: {bytearray_to_string(value)}")
+
                 for descriptor in char.descriptors:
                     try:
                         value = await client.read_gatt_descriptor(descriptor.handle)
-                        print(f"    Descriptor: {descriptor.uuid} - Value: {value}")
+                        print(f"    -> Descriptor [{descriptor.uuid}]: {bytearray_to_string(value)}")
                     except Exception as e:
-                        print(f"    Error reading descriptor {descriptor.uuid}: {e}")
+                        print(f"    -> Error reading descriptor [{descriptor.uuid}]: {e}")
+            print("\n")
 
-# Main entry point
 if __name__ == "__main__":
-    import sys
-    device_pattern = sys.argv[1] if len(sys.argv) > 1 else "^PL2B"
+    device_pattern = None if len(sys.argv) <= 1 else sys.argv[1]
     asyncio.run(list_characteristics(device_pattern))
