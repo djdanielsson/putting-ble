@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 # Configuration constants
 MQTT_BROKER = "localhost"  # MQTT broker address
 CHARACTERISTIC_READY_UUID = "00000000-0000-1000-8000-00805f9b34f1"  # 'Ready' characteristic UUID
+BATTERY_LEVEL_CHARACTERISTIC_UUID = "00002a19-0000-1000-8000-00805f9b34fb"  # Battery Level characteristic UUID
 DATA_TO_WRITE = bytearray([0x01])  # Data to enable notifications
 
 # Mapping of BLE device names to friendly names
@@ -54,12 +55,19 @@ def notification_callback(sender, data, client, mqtt_client, friendly_name):
     """Wrapper for the notification handler to enable asyncio task creation."""
     asyncio.create_task(notification_handler(sender, data, client, mqtt_client, friendly_name))
 
-async def read_ready_characteristic_periodically(client, interval=5):
-    """Periodically read the Ready characteristic and log its value."""
-    while client.is_connected:
-        value = await client.read_gatt_char(CHARACTERISTIC_READY_UUID)
-        logger.info(f"Ready characteristic value: {value}")
-        await asyncio.sleep(interval)
+async def read_battery_level(client, mqtt_client, friendly_name):
+    """Read the battery level of the connected BLE device and send to MQTT."""
+    try:
+        battery_level = await client.read_gatt_char(BATTERY_LEVEL_CHARACTERISTIC_UUID)
+        battery_percentage = int(battery_level[0])
+        logger.info(f"Battery Level: {battery_percentage}%")
+
+        # Publish battery level to MQTT
+        battery_message = json.dumps({"battery_level": battery_percentage})
+        mqtt_topic = f"golfball/{friendly_name}/battery"
+        await send_to_mqtt(mqtt_client, mqtt_topic, battery_message)
+    except Exception as e:
+        logger.error(f"Error reading battery level: {e}")
 
 async def find_device_by_name(device_name):
     """Discover BLE devices and return the one matching the given name."""
@@ -80,13 +88,13 @@ async def main():
         async with BleakClient(device.address) as client, AsyncMqttClient(MQTT_BROKER) as mqtt_client:
             await client.connect()
             await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
-            initial_ready_value = await client.read_gatt_char(CHARACTERISTIC_READY_UUID)
-            logger.info(f"Initial Ready characteristic value: {initial_ready_value}")
+
+            # Read and publish the battery level to MQTT
+            await read_battery_level(client, mqtt_client, friendly_name)
 
             for uuid in CHARACTERISTICS:
                 await client.start_notify(uuid, lambda s, d: notification_callback(s, d, client, mqtt_client, friendly_name))
 
-            asyncio.create_task(read_ready_characteristic_periodically(client))
             logger.info(f"{friendly_name} application is running. Press Ctrl+C to exit...")
             await asyncio.Event().wait()
 
