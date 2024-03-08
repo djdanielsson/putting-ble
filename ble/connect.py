@@ -1,3 +1,32 @@
+"""
+This Python script is a Bluetooth Low Energy (BLE) to MQTT bridge for monitoring BLE golf balls.
+It scans for specified BLE devices, connects to them, and forwards their notifications to an
+MQTT broker. The script allows for the specification of BLE devices and the MQTT broker address
+through command-line arguments.
+
+Features:
+- Connects to BLE devices based on a list of device names and their friendly names.
+- Monitors specified BLE characteristics and forwards notifications to MQTT.
+- Manages the "Ready" characteristic to ensure the BLE device is always ready for data collection.
+- Reads and publishes the battery level of connected BLE devices to MQTT.
+- Utilizes asynchronous programming with asyncio for efficient handling of I/O operations.
+
+Usage:
+    python connect.py -m <MQTT_BROKER> -g <GOLF_BALLS>
+
+    Parameters:
+    -m, --mqtt-broker: The address of the MQTT broker to which the data will be published.
+    -g, --golf-balls: Comma-separated list of device_name:friendly_name pairs to identify and name
+                      the BLE devices.
+
+Example:
+    python connect.py -m localhost -g PL2B2118:golfball1,PL2B2119:golfball2
+
+    This command will connect to two BLE golf balls with device names PL2B2118 and PL2B2119, refer
+    to them as golfball1 and golfball2 respectively, and publish their notifications to the MQTT
+    broker running at localhost.
+"""
+
 import asyncio
 import json
 import logging
