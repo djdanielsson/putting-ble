@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 from bleak import BleakScanner, BleakClient
 from aiomqtt import Client as AsyncMqttClient, MqttError
 
@@ -8,17 +9,22 @@ from aiomqtt import Client as AsyncMqttClient, MqttError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Fetch configuration from environment variables
+MQTT_BROKER = os.getenv('MQTT_BROKER', 'localhost')  # Default to 'localhost' if not set
+GOLF_BALLS_ENV = os.getenv('GOLF_BALLS')
+
+# Convert the GOLF_BALLS environment variable to a dictionary
+# Expected format: "PL2B2118:golfball1,PL2B2119:golfball2"
+GOLF_BALLS = {}
+if GOLF_BALLS_ENV:
+    for item in GOLF_BALLS_ENV.split(','):
+        device, friendly_name = item.split(':')
+        GOLF_BALLS[device] = friendly_name
+
 # Configuration constants
-MQTT_BROKER = "localhost"  # MQTT broker address
 CHARACTERISTIC_READY_UUID = "00000000-0000-1000-8000-00805f9b34f1"  # 'Ready' characteristic UUID
 BATTERY_LEVEL_CHARACTERISTIC_UUID = "00002a19-0000-1000-8000-00805f9b34fb"  # Battery Level characteristic UUID
 DATA_TO_WRITE = bytearray([0x01])  # Data to enable notifications
-
-# Mapping of BLE device names to friendly names
-GOLF_BALLS = {
-    "PL2B2118": "golfball1",
-    # Add additional golf balls here as "DEVICE_NAME": "friendly_name"
-}
 
 # BLE characteristics of interest
 CHARACTERISTICS = {
@@ -99,4 +105,8 @@ async def main():
             await asyncio.Event().wait()
 
 if __name__ == "__main__":
+    if not GOLF_BALLS:
+        logger.error('The GOLF_BALLS environment variable is not set.')
+    if not MQTT_BROKER:
+        logger.error('The MQTT_BROKER environment variable is not set.')
     asyncio.run(main())
