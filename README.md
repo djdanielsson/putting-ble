@@ -7,18 +7,10 @@ Demo material for Red Hat Summit demonstration with BLE golf ball
 
 ```mermaid
 graph LR
-    BLEDevice(Golf Ball BLE Device) -- BLE --> RaspberryPi("Raspberry Pi<br>BLE App & API Server")
-    RaspberryPi -- "MQTT Publish" --> MQTTBroker["MQTT Broker<br>(Mosquitto)"]
-    MQTTBroker -- "MQTT Subscribe" --> RaspberryPi
-    RaspberryPi -- "WebSocket (WS)" --> WebBrowser["Web Browser<br>(Web UI)"]
-    WebBrowser -. "HTTP" .-> RaspberryPi
+    A[BLE Golf Ball] -->|BLE| B["Python BLE Script<br>(connect.py)"]
+    B -->|MQTT| C["MQTT Broker<br>(e.g., Mosquitto)"]
+    C -->|MQTT| D["MQTT Subscriber<br>(e.g., EDA and Web App)"]
 
-    classDef default fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef mqtt fill:#bbf,stroke:#f66,stroke-width:2px,stroke-dasharray: 5 5;
-    classDef http fill:#fbf,stroke:#393,stroke-width:2px,stroke-dasharray: 3 3;
-
-    class MQTTBroker mqtt;
-    class WebBrowser,HTTP http;
 ```
 
 ## Requirements
