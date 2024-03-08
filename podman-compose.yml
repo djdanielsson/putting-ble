@@ -1,26 +1,6 @@
 version: '3'
 
 services:
-  # ble_app:
-  #   container_name: ble_app
-  #   image: fedora:38
-  #   build:
-  #     context: ./ble
-  #     dockerfile: ble_Containerfile
-  #   volumes:
-  #     - ./ble:/app
-  #   environment:
-  #     - MQTT_BROKER=mosquitto
-  #     - GOLF_BALLS=PL2B2118:golfball1
-  #   cap_add:
-  #     - NET_ADMIN
-  #     - SYS_RAWIO
-  #   security_opt:
-  #     - seccomp:unconfined
-  #   devices:
-  #     - /dev/bus/usb:/dev/bus/usb
-  #   command: python /app/connect.py
-
   mosquitto:
     image: eclipse-mosquitto:latest
     container_name: mosquitto
