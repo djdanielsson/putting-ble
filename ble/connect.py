@@ -1,25 +1,13 @@
 import asyncio
 import json
 import logging
-import os
+import argparse
 from bleak import BleakScanner, BleakClient
 from aiomqtt import Client as AsyncMqttClient, MqttError
 
 # Initialize logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
-
-# Fetch configuration from environment variables
-MQTT_BROKER = os.getenv('MQTT_BROKER', 'localhost')  # Default to 'localhost' if not set
-GOLF_BALLS_ENV = os.getenv('GOLF_BALLS')
-
-# Convert the GOLF_BALLS environment variable to a dictionary
-# Expected format: "PL2B2118:golfball1,PL2B2119:golfball2"
-GOLF_BALLS = {}
-if GOLF_BALLS_ENV:
-    for item in GOLF_BALLS_ENV.split(','):
-        device, friendly_name = item.split(':')
-        GOLF_BALLS[device] = friendly_name
 
 # Configuration constants
 CHARACTERISTIC_READY_UUID = "00000000-0000-1000-8000-00805f9b34f1"  # 'Ready' characteristic UUID
@@ -35,6 +23,13 @@ CHARACTERISTICS = {
     "00000000-0000-1000-8000-00805f9b34f2": "BallStopped",
     "00000000-0000-1000-8000-00805f9b34f1": "Ready"
 }
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='BLE MQTT Client Application')
+    parser.add_argument('-m', '--mqtt-broker', type=str, required=True, help='MQTT broker address')
+    parser.add_argument('-g', '--golf-balls', type=str, required=True,
+                        help='Comma-separated list of device_name:friendly_name pairs')
+    return parser.parse_args()
 
 async def send_to_mqtt(client, topic, message):
     """Publish a message to an MQTT topic."""
@@ -84,14 +79,19 @@ async def find_device_by_name(device_name):
     return None
 
 async def main():
+    args = parse_args()
+    mqtt_broker = args.mqtt_broker
+    golf_balls_list = args.golf_balls.split(',')
+    golf_balls = {item.split(':')[0]: item.split(':')[1] for item in golf_balls_list}
+
     """Main function to manage BLE connections and handle notifications."""
-    for device_name, friendly_name in GOLF_BALLS.items():
+    for device_name, friendly_name in golf_balls.items():
         device = await find_device_by_name(device_name)
         if not device:
             logger.error(f"Device with name {device_name} not found.")
             continue
 
-        async with BleakClient(device.address) as client, AsyncMqttClient(MQTT_BROKER) as mqtt_client:
+        async with BleakClient(device.address) as client, AsyncMqttClient(mqtt_broker) as mqtt_client:
             await client.connect()
             await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
 
@@ -105,8 +105,4 @@ async def main():
             await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    if not GOLF_BALLS:
-        logger.error('The GOLF_BALLS environment variable is not set.')
-    if not MQTT_BROKER:
-        logger.error('The MQTT_BROKER environment variable is not set.')
     asyncio.run(main())
