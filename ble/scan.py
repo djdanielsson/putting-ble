@@ -30,7 +30,7 @@ Note:
 import asyncio
 import re
 import sys
-from bleak import BleakScanner, BleakClient
+from bleak import BleakScanner, BleakClient, BleakError
 
 # Mapping of common characteristic UUIDs to human-readable names
 CHARACTERISTIC_NAME_MAP = {
@@ -52,7 +52,7 @@ def bytearray_to_string(value):
     except UnicodeDecodeError:
         return value.hex()
 
-async def list_characteristics(device_pattern, attempts=5):
+async def list_characteristics(device_pattern, attempts=5, connection_attempts=3):
     if not device_pattern:
         print("Device name pattern must be provided.")
         return
@@ -75,10 +75,21 @@ async def list_characteristics(device_pattern, attempts=5):
         print(f"No devices found with pattern '{device_pattern}'.")
         return
 
-    async with BleakClient(found_device.address) as client:
-        await client.connect()
-        print(f"\nConnected to: {found_device.name} (Address: {found_device.address})\n")
+    client = BleakClient(found_device.address)
+    for attempt in range(1, connection_attempts + 1):
+        try:
+            if not client.is_connected:
+                await client.connect()
+                print(f"\nConnected to: {found_device.name} (Address: {found_device.address})\n")
+                break
+        except Exception as e:
+            print(f"Connection attempt {attempt}/{connection_attempts} failed: {e}")
+            if attempt == connection_attempts:
+                print("Failed to connect to the device.")
+                return
+            await asyncio.sleep(1)
 
+    try:
         for service in client.services:
             print(f"Service [{service.uuid}]\n-------------------------")
             for char in service.characteristics:
@@ -96,6 +107,8 @@ async def list_characteristics(device_pattern, attempts=5):
                     except Exception as e:
                         print(f"    -> Error reading descriptor [{descriptor.uuid}]: {e}")
             print("\n")
+    finally:
+        await client.disconnect()
 
 if __name__ == "__main__":
     device_pattern = None if len(sys.argv) <= 1 else sys.argv[1]
