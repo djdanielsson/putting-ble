@@ -31,7 +31,7 @@ import asyncio
 import json
 import logging
 import argparse
-from bleak import BleakScanner, BleakClient
+from bleak import BleakScanner, BleakClient, BleakError
 from aiomqtt import Client as AsyncMqttClient, MqttError
 
 # Initialize logging
@@ -63,7 +63,7 @@ def parse_args():
 async def send_to_mqtt(client, topic, message):
     """Publish a message to an MQTT topic."""
     try:
-        await client.publish(topic, message)
+        await client.publish(topic, message.encode())
         logger.debug(f"Published to MQTT: {topic} - {message}")
     except MqttError as e:
         logger.error(f"MQTT error: {e}")
@@ -113,25 +113,31 @@ async def main():
     golf_balls_list = args.golf_balls.split(',')
     golf_balls = {item.split(':')[0]: item.split(':')[1] for item in golf_balls_list}
 
-    """Main function to manage BLE connections and handle notifications."""
     for device_name, friendly_name in golf_balls.items():
         device = await find_device_by_name(device_name)
         if not device:
             logger.error(f"Device with name {device_name} not found.")
             continue
 
-        async with BleakClient(device.address) as client, AsyncMqttClient(mqtt_broker) as mqtt_client:
-            await client.connect()
-            await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
+        try:
+            async with BleakClient(device.address) as client, AsyncMqttClient(mqtt_broker) as mqtt_client:
+                logger.info(f"Connected to: {device.name} (Address: {device.address})")
 
-            # Read and publish the battery level to MQTT
-            await read_battery_level(client, mqtt_client, friendly_name)
+                await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
+                await read_battery_level(client, mqtt_client, friendly_name)
 
-            for uuid in CHARACTERISTICS:
-                await client.start_notify(uuid, lambda s, d: notification_callback(s, d, client, mqtt_client, friendly_name))
+                for uuid in CHARACTERISTICS:
+                    await client.start_notify(uuid, lambda s, d: notification_callback(s, d, client, mqtt_client, friendly_name))
 
-            logger.info(f"{friendly_name} application is running. Press Ctrl+C to exit...")
-            await asyncio.Event().wait()
+                logger.info(f"{friendly_name} application is running. Press Ctrl+C to exit...")
+                await asyncio.Event().wait()
+
+        except BleakError as e:
+            logger.error(f"BLE error with {friendly_name}: {e}")
+        except MqttError as e:
+            logger.error(f"MQTT error with {friendly_name}: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error with {friendly_name}: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
