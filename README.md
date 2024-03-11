@@ -1,8 +1,9 @@
 # putting-demo-summit
 Demo material for Red Hat Summit demonstration with BLE golf ball
 
-`connect.py` this script is designed to connect to a BLE-enabled golf ball, write a command to activate data collection, and listen to notifications from various characteristics that provide information about the golf ball's movements and interactions.
-`scan.py` this script is a helper app that allows somebody to search for a BLE device by regex match and print out the characteristics of that device
+`connect.py` is designed to connect to a BLE-enabled golf ball, write a command to activate data collection, and listen to notifications from various characteristics that provide information about the golf ball's movements and interactions
+
+`scan.py` is a helper app that allows somebody to search for a BLE device by regex match and print out the characteristics of that device
 
 Event-Driven Ansible (EDA) is able to subscribe to messaging layer components like MQTT which allows EDA to pick up all events published to any topics:
 ```
