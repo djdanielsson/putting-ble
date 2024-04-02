@@ -65,8 +65,8 @@ BALL_STATE_ENUM = [
 def parse_args():
     parser = argparse.ArgumentParser(description='BLE MQTT Client Application')
     parser.add_argument('-m', '--mqtt-broker', type=str, required=True, help='MQTT broker address')
-    parser.add_argument('-g', '--golf-ball', type=str, required=True,
-                        help='Device_name:friendly_name pair')
+    parser.add_argument('-g', '--golf-balls', type=str, required=True,
+                        help='Comma-separated list of device_name:friendly_name pairs')
     return parser.parse_args()
 
 async def send_to_mqtt(client, topic, message):
@@ -103,11 +103,15 @@ async def notification_handler(sender, data, client, mqtt_client, friendly_name)
     else:
         data_value = data[1] if len(data) > 1 else data[0]  # Use the second value if available, else the first
 
-    message = json.dumps({"data": data_value, "characteristic": characteristic_name})
+    # Log the notification with characteristic name and data
+    logger.info(f"BLE Notification: {characteristic_name} - {data_value}")
+
+    # Prepare the message containing only the data for MQTT
+    message = json.dumps({"data": data_value})
     mqtt_topic = f"golfball/{friendly_name}/{characteristic_name}"
     
-    logger.info(f"BLE Notification: {message}")
     await send_to_mqtt(mqtt_client, mqtt_topic, message)
+
 
     # # Probably not needed now that the ball is woken up by toggling Ready based on ballState
     # if characteristic_name == "Ready" and data == bytearray([0]):
