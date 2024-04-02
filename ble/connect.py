@@ -12,12 +12,11 @@ Features:
 - Utilizes asynchronous programming with asyncio for efficient handling of I/O operations.
 
 Usage:
-    python connect.py -m <MQTT_BROKER> -g <GOLF_BALLS>
+    python connect.py -m <MQTT_BROKER> -g <GOLF_BALL>
 
     Parameters:
     -m, --mqtt-broker: The address of the MQTT broker to which the data will be published.
-    -g, --golf-balls: Comma-separated list of device_name:friendly_name pairs to identify and name
-                      the BLE devices.
+    -g, --golf-ball: Device_name:friendly_name pair to identify and name the BLE device.
 
 Example:
     python connect.py -m localhost -g PL2B2118:golfball1,PL2B2119:golfball2
@@ -45,13 +44,23 @@ DATA_TO_WRITE = bytearray([0x01])  # Data to enable notifications
 
 # BLE characteristics of interest
 CHARACTERISTICS = {
-    "00000000-0000-1000-8000-00805f9b34f3": "RollCount",
-    "00000000-0000-1000-8000-00805f9b34f8": "PuttMade",
+    "00000000-0000-1000-8000-00805f9b34f3": "ballRollCount",
     "00000000-0000-1000-8000-00805f9b34f4": "Velocity",
-    "00000000-0000-1000-8000-00805f9b34f6": "Stimp",
-    "00000000-0000-1000-8000-00805f9b34f2": "BallStopped",
-    "00000000-0000-1000-8000-00805f9b34f1": "Ready"
+    "00000000-0000-1000-8000-00805f9b34f1": "Ready",
+    "0d79161c-4469-4870-aceb-3e563875a0b7": "ballState"
 }
+
+# ballState enum mapping
+BALL_STATE_ENUM = [
+    "ST_READY",
+    "ST_PUTT_STARTED",
+    "ST_MAGNET_STOP",
+    "ST_PUTT_STOPPING",
+    "ST_BALL_STOPPED",
+    "ST_PUTT_COMPLETE",
+    "ST_PUTT_NOT_COUNTED",
+    "ST_PUTT_CONNECT"
+]
 
 def parse_args():
     parser = argparse.ArgumentParser(description='BLE MQTT Client Application')
@@ -68,18 +77,43 @@ async def send_to_mqtt(client, topic, message):
     except MqttError as e:
         logger.error(f"MQTT error: {e}")
 
+async def print_all_characteristic_values(client, friendly_name):
+    for uuid, char_name in CHARACTERISTICS.items():
+        try:
+            value = await client.read_gatt_char(uuid)
+            logger.info(f"{friendly_name} - Characteristic {char_name} ({uuid}): {value}")
+        except Exception as e:
+            logger.error(f"Error reading {char_name}: {e}")
+
 async def notification_handler(sender, data, client, mqtt_client, friendly_name):
     """Handle BLE notifications, publish to MQTT, and manage the Ready characteristic."""
     characteristic_name = CHARACTERISTICS.get(sender.uuid, "Unknown")
-    message = json.dumps({"characteristic": characteristic_name, "data": list(data)})
+
+    if characteristic_name == "ballState":
+        state_index = data[0]  # Assuming the first byte is the state
+        data_value = BALL_STATE_ENUM[state_index] if state_index < len(BALL_STATE_ENUM) else "UNKNOWN_STATE"
+        if data_value == "ST_PUTT_COMPLETE":
+            # Detected ST_PUTT_COMPLETE, attempt to "wake" the ball by toggling the Ready state
+            logger.info("ST_PUTT_COMPLETE detected. Attempting to toggle Ready state to wake the ball.")
+            await client.write_gatt_char(CHARACTERISTIC_READY_UUID, bytearray([0x00]))  # Set Ready to 0
+            await asyncio.sleep(0.5)  # Short delay before setting Ready back to 1
+            await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)  # Set Ready back to 1
+    elif characteristic_name == "Velocity":
+        data_value = data[1] / 10.0  # Convert to ft/sec
+    else:
+        data_value = data[1] if len(data) > 1 else data[0]  # Use the second value if available, else the first
+
+    message = json.dumps({"data": data_value, "characteristic": characteristic_name})
     mqtt_topic = f"golfball/{friendly_name}/{characteristic_name}"
     
     logger.info(f"BLE Notification: {message}")
     await send_to_mqtt(mqtt_client, mqtt_topic, message)
 
-    if characteristic_name == "Ready" and data == bytearray([0]):
-        logger.info("Ready characteristic is 0, setting it back to 1.")
-        await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
+    # # Probably not needed now that the ball is woken up by toggling Ready based on ballState
+    # if characteristic_name == "Ready" and data == bytearray([0]):
+    #     logger.info("Ready characteristic is 0, detected in notification handler. Setting it back to 1.")
+    #     await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
+
 
 def notification_callback(sender, data, client, mqtt_client, friendly_name):
     """Wrapper for the notification handler to enable asyncio task creation."""
@@ -107,6 +141,18 @@ async def find_device_by_name(device_name):
             return device
     return None
 
+# # Troubleshooting bit, probably not needed 1/3
+# async def periodic_read_ready(client, interval=2):
+#     """Periodically reads the Ready characteristic."""
+#     while True:
+#         try:
+#             ready_value = await client.read_gatt_char(CHARACTERISTIC_READY_UUID)
+#             logger.info(f"Periodic Ready Check: {ready_value}")
+#         except Exception as e:
+#             logger.error(f"Error during periodic ready check: {e}")
+#         await asyncio.sleep(interval)
+
+
 async def main():
     args = parse_args()
     mqtt_broker = args.mqtt_broker
@@ -129,8 +175,20 @@ async def main():
                 for uuid in CHARACTERISTICS:
                     await client.start_notify(uuid, lambda s, d: notification_callback(s, d, client, mqtt_client, friendly_name))
 
+                # # Troubleshooting bit, probably not needed 2/3
+                # # Start the periodic read task
+                # periodic_task = asyncio.create_task(periodic_read_ready(client))
+
                 logger.info(f"{friendly_name} application is running. Press Ctrl+C to exit...")
                 await asyncio.Event().wait()
+
+                # # Troubleshooting bit, probably not needed 3/3
+                # # Cancel the periodic task when the application is stopping
+                # periodic_task.cancel()
+                # try:
+                #     await periodic_task
+                # except asyncio.CancelledError:
+                #     logger.info("Periodic ready check task cancelled.")
 
         except BleakError as e:
             logger.error(f"BLE error with {friendly_name}: {e}")
@@ -138,6 +196,7 @@ async def main():
             logger.error(f"MQTT error with {friendly_name}: {e}")
         except Exception as e:
             logger.error(f"Unexpected error with {friendly_name}: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
