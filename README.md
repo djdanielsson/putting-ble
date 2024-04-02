@@ -189,7 +189,7 @@ golfball/golfball1/battery {"battery_level": 100}
 golfball/golfball1/ballRollCount {"data": 1}
 golfball/golfball1/Velocity {"data": 0.8}
 golfball/golfball1/Ready {"data": 0}
-golfball/golfball1/ballState {"data": "ST_PUTT_STARTED"}
+golfball/golfball1/ballState {"data": "ST_PUTT_STARTED"} <<<<<<<<<<<< FIRST PUTT
 golfball/golfball1/ballRollCount {"data": 3}
 golfball/golfball1/Velocity {"data": 1.7}
 golfball/golfball1/ballRollCount {"data": 4}
@@ -201,12 +201,12 @@ golfball/golfball1/ballState {"data": "ST_PUTT_STOPPING"}
 golfball/golfball1/ballState {"data": "ST_BALL_STOPPED"}
 golfball/golfball1/Ready {"data": 1}
 golfball/golfball1/ballState {"data": "ST_READY"}
-golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE"}
+golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE"} <<<<<<<<<<<< END OF PUTT ONE
 golfball/golfball1/ballRollCount {"data": 0}
 golfball/golfball1/ballRollCount {"data": 2}
 golfball/golfball1/Velocity {"data": 1.7}
 golfball/golfball1/Ready {"data": 0}
-golfball/golfball1/ballState {"data": "ST_PUTT_STARTED"}
+golfball/golfball1/ballState {"data": "ST_PUTT_STARTED"} <<<<<<<<<<<< SECOND PUTT
 golfball/golfball1/ballRollCount {"data": 7}
 golfball/golfball1/Velocity {"data": 2.6}
 golfball/golfball1/ballRollCount {"data": 10}
@@ -218,8 +218,8 @@ golfball/golfball1/Velocity {"data": 0.0}
 golfball/golfball1/ballState {"data": "ST_PUTT_STOPPING"}
 golfball/golfball1/ballRollCount {"data": 15}
 golfball/golfball1/Velocity {"data": 1.7}
-golfball/golfball1/ballState {"data": "ST_MAGNET_STOP"}
+golfball/golfball1/ballState {"data": "ST_MAGNET_STOP"} <<<<<<<<<<<< BALL LANDED IN THE CUP
 golfball/golfball1/Ready {"data": 1}
 golfball/golfball1/ballState {"data": "ST_READY"}
-golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE"}
+golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE"} <<<<<<<<<<<< END OF PUTT TWO
 ```
