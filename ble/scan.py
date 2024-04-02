@@ -52,7 +52,7 @@ def bytearray_to_string(value):
     except UnicodeDecodeError:
         return value.hex()
 
-async def list_characteristics(device_pattern, attempts=5, connection_attempts=3):
+async def list_characteristics(device_pattern, attempts=20, connection_attempts=3):
     if not device_pattern:
         print("Device name pattern must be provided.")
         return
