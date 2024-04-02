@@ -223,3 +223,33 @@ golfball/golfball1/Ready {"data": 1}
 golfball/golfball1/ballState {"data": "ST_READY"}
 golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE"} <<<<<<<<<<<< END OF PUTT TWO
 ```
+
+### Hole in three (with a NOT_COUNTED putt)
+```
+INFO: BLE Notification: ballState - ST_PUTT_STARTED
+INFO: BLE Notification: ballState - ST_PUTT_NOT_COUNTED
+INFO: BLE Notification: ballState - ST_READY
+INFO: BLE Notification: ballState - ST_PUTT_STARTED
+INFO: BLE Notification: ballState - ST_PUTT_STOPPING
+INFO: BLE Notification: ballState - ST_BALL_STOPPED
+INFO: BLE Notification: ballState - ST_PUTT_COMPLETE
+INFO: ST_PUTT_COMPLETE detected without ST_MAGNET_STOP. Toggling Ready state to wake the ball.
+INFO: BLE Notification: ballState - ST_READY
+INFO: BLE Notification: ballState - ST_PUTT_STARTED
+INFO: BLE Notification: ballState - ST_PUTT_STOPPING
+INFO: BLE Notification: ballState - ST_BALL_STOPPED
+INFO: BLE Notification: ballState - ST_PUTT_COMPLETE
+INFO: ST_PUTT_COMPLETE detected without ST_MAGNET_STOP. Toggling Ready state to wake the ball.
+INFO: BLE Notification: ballState - ST_READY
+INFO: BLE Notification: ballState - ST_PUTT_STARTED
+INFO: BLE Notification: ballState - ST_PUTT_NOT_COUNTED
+INFO: BLE Notification: ballState - ST_READY
+INFO: BLE Notification: ballState - ST_PUTT_STARTED
+INFO: BLE Notification: ballState - ST_PUTT_NOT_COUNTED
+INFO: BLE Notification: ballState - ST_READY
+INFO: BLE Notification: ballState - ST_PUTT_STARTED
+INFO: BLE Notification: ballState - ST_MAGNET_STOP
+INFO: ST_MAGNET_STOP detected. The golf ball has landed in the cup.
+INFO: BLE Notification: ballState - ST_PUTT_COMPLETE
+INFO: ST_MAGNET_STOP was previously encountered. Keeping Ready state as is.
+```
