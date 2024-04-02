@@ -65,8 +65,8 @@ BALL_STATE_ENUM = [
 def parse_args():
     parser = argparse.ArgumentParser(description='BLE MQTT Client Application')
     parser.add_argument('-m', '--mqtt-broker', type=str, required=True, help='MQTT broker address')
-    parser.add_argument('-g', '--golf-balls', type=str, required=True,
-                        help='Comma-separated list of device_name:friendly_name pairs')
+    parser.add_argument('-g', '--golf-ball', type=str, required=True,
+                        help='Device_name:friendly_name pair')
     return parser.parse_args()
 
 async def send_to_mqtt(client, topic, message):
