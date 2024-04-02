@@ -182,3 +182,44 @@ INFO: BLE Notification: {"data": "ST_READY", "characteristic": "ballState"}
 INFO: BLE Notification: {"data": "ST_PUTT_COMPLETE", "characteristic": "ballState"}
 INFO: BLE Notification: {"data": 0, "characteristic": "ballRollCount"}
 ```
+
+### Hole in two MQTT
+```
+golfball/golfball1/battery {"battery_level": 100}
+golfball/golfball1/ballRollCount {"data": 1}
+golfball/golfball1/Velocity {"data": 0.8}
+golfball/golfball1/Ready {"data": 0}
+golfball/golfball1/ballState {"data": "ST_PUTT_STARTED"}
+golfball/golfball1/ballRollCount {"data": 3}
+golfball/golfball1/Velocity {"data": 1.7}
+golfball/golfball1/ballRollCount {"data": 4}
+golfball/golfball1/Velocity {"data": 0.8}
+golfball/golfball1/ballRollCount {"data": 7}
+golfball/golfball1/ballRollCount {"data": 8}
+golfball/golfball1/Velocity {"data": 0.0}
+golfball/golfball1/ballState {"data": "ST_PUTT_STOPPING"}
+golfball/golfball1/ballState {"data": "ST_BALL_STOPPED"}
+golfball/golfball1/Ready {"data": 1}
+golfball/golfball1/ballState {"data": "ST_READY"}
+golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE"}
+golfball/golfball1/ballRollCount {"data": 0}
+golfball/golfball1/ballRollCount {"data": 2}
+golfball/golfball1/Velocity {"data": 1.7}
+golfball/golfball1/Ready {"data": 0}
+golfball/golfball1/ballState {"data": "ST_PUTT_STARTED"}
+golfball/golfball1/ballRollCount {"data": 7}
+golfball/golfball1/Velocity {"data": 2.6}
+golfball/golfball1/ballRollCount {"data": 10}
+golfball/golfball1/ballRollCount {"data": 12}
+golfball/golfball1/Velocity {"data": 1.7}
+golfball/golfball1/ballRollCount {"data": 13}
+golfball/golfball1/Velocity {"data": 0.8}
+golfball/golfball1/Velocity {"data": 0.0}
+golfball/golfball1/ballState {"data": "ST_PUTT_STOPPING"}
+golfball/golfball1/ballRollCount {"data": 15}
+golfball/golfball1/Velocity {"data": 1.7}
+golfball/golfball1/ballState {"data": "ST_MAGNET_STOP"}
+golfball/golfball1/Ready {"data": 1}
+golfball/golfball1/ballState {"data": "ST_READY"}
+golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE"}
+```
