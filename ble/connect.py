@@ -42,10 +42,9 @@ CHARACTERISTIC_READY_UUID = "00000000-0000-1000-8000-00805f9b34f1"  # 'Ready' ch
 BATTERY_LEVEL_CHARACTERISTIC_UUID = "00002a19-0000-1000-8000-00805f9b34fb"  # Battery Level characteristic UUID
 DATA_TO_WRITE = bytearray([0x01])  # Data to enable notifications
 
-# Global variable to track if ST_MAGNET_STOP was encountered
-st_magnet_stop_encountered = False
-# Global variable to track strokes
-stroke_counter = 0
+# Global variables
+st_magnet_stop_encountered = False  # Tracks if ST_MAGNET_STOP was encountered
+stroke_counter = 0  # Tracks strokes
 
 # BLE characteristics of interest
 CHARACTERISTICS = {
@@ -82,34 +81,26 @@ async def send_to_mqtt(client, topic, message):
     except MqttError as e:
         logger.error(f"MQTT error: {e}")
 
-async def print_all_characteristic_values(client, friendly_name):
-    for uuid, char_name in CHARACTERISTICS.items():
-        try:
-            value = await client.read_gatt_char(uuid)
-            logger.info(f"{friendly_name} - Characteristic {char_name} ({uuid}): {value}")
-        except Exception as e:
-            logger.error(f"Error reading {char_name}: {e}")
-
-
 async def notification_handler(sender, data, client, mqtt_client, friendly_name):
     global st_magnet_stop_encountered, stroke_counter
     characteristic_name = CHARACTERISTICS.get(sender.uuid, "Unknown")
 
-    # Default data_value for handling characteristics other than ballState
+    # Default handling for characteristics other than ballState
     if characteristic_name == "Velocity":
         data_value = data[1] / 10.0  # Convert to ft/sec
     else:
-        data_value = data[1] if len(data) > 1 else data[0]  # Use the second value if available, else the first
+        data_value = data[1] if len(data) > 1 else data[0]
 
     try:
         if characteristic_name == "ballState":
-            state_index = data[0]  # Assuming the first byte is the state
+            state_index = data[0]
             data_value = BALL_STATE_ENUM[state_index] if state_index < len(BALL_STATE_ENUM) else "UNKNOWN_STATE"
+            
             if data_value == "ST_PUTT_STARTED":
                 stroke_counter += 1
             elif data_value == "ST_PUTT_NOT_COUNTED":
                 stroke_counter = max(stroke_counter - 1, 0)  # Ensure counter doesn't go below 0
-
+            
             if data_value == "ST_MAGNET_STOP":
                 logger.info("ST_MAGNET_STOP detected. The golf ball has landed in the cup.")
                 st_magnet_stop_encountered = True
@@ -139,8 +130,6 @@ async def notification_handler(sender, data, client, mqtt_client, friendly_name)
     except Exception as e:
         logger.error(f"Error handling BLE notification for {characteristic_name}: {e}")
 
-
-
 def notification_callback(sender, data, client, mqtt_client, friendly_name):
     """Wrapper for the notification handler to enable asyncio task creation."""
     asyncio.create_task(notification_handler(sender, data, client, mqtt_client, friendly_name))
@@ -167,6 +156,18 @@ async def find_device_by_name(device_name):
             return device
     return None
 
+async def handle_new_player_command(mqtt_client, client, friendly_name):
+    """Handle new player commands from MQTT."""
+    command_topic = f"golfball/{friendly_name}/command"
+    await mqtt_client.subscribe(command_topic)
+
+    async for message in mqtt_client.messages:
+        if message.payload.decode() == "new_player":
+            logger.info(f"New player command received for {friendly_name}.")
+            # Set the Ready characteristic to signal the next player's turn
+            await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
+            logger.info(f"Set Ready for {friendly_name} for next player.")
+
 async def main():
     args = parse_args()
     mqtt_broker = args.mqtt_broker
@@ -189,6 +190,8 @@ async def main():
                 for uuid in CHARACTERISTICS:
                     await client.start_notify(uuid, lambda s, d: notification_callback(s, d, client, mqtt_client, friendly_name))
 
+                await handle_new_player_command(mqtt_client, client, friendly_name)
+
                 logger.info(f"{friendly_name} application is running. Press Ctrl+C to exit...")
                 await asyncio.Event().wait()
 
@@ -199,6 +202,6 @@ async def main():
         except Exception as e:
             logger.error(f"Unexpected error with {friendly_name}: {e}")
 
-
 if __name__ == "__main__":
     asyncio.run(main())
+
