@@ -54,202 +54,89 @@ graph LR
 3. Configure the DEVICE_NAME in the script to match the name of your BLE golf ball.
 
 
-## Notes:
+## Example:
 
-### Hole in one
+### First player hole in 3 strokes, second player hole in 2 strokes
+- `ST_PUTT_NOT_COUNTED` during first player's turn is the result of me carrying the ball to the starting location. Stroke counter is incremented on `ST_PUTT_STARTED`, decremented on `ST_PUTT_NOT_COUNTED` and reset when "new_player" is received on the `golfball/{friendly_name}/command` topic. The `Ready` characteristic == 1 is what starts data collection and is set to 0 when `ST_MAGNET_STOP` is received which signals the ball has landed in the hole. "new_player" message received on the command topic sets `Ready` to 1 to begin data collection for the next golfer.
 ```
-(venv) ➜  putting-demo-summit git:(main) ✗ python3 ble/connect.py -m localhost -g PL2B2418:golfball1
-INFO: Connected to: PL2B2418 (Address: 68720155-8DD9-AE6A-8855-881CF69A1F4E)
-INFO: Battery Level: 100%
-INFO: golfball1 application is running. Press Ctrl+C to exit...
-INFO: BLE Notification: {"data": 1, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.8, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 0, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": "ST_PUTT_STARTED", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 8, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 4.4, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 12, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 3.5, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 16, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 20, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 23, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 2.6, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 24, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.8, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 25, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 26, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.0, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": "ST_PUTT_STOPPING", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": "ST_MAGNET_STOP", "characteristic": "ballState"}
-INFO: ST_PUTT_COMPLETE detected. Attempting to toggle Ready state to wake the ball.
-INFO: BLE Notification: {"data": 1, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": "ST_READY", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": "ST_PUTT_COMPLETE", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 0, "characteristic": "ballRollCount"}
-```
-
-### Hole in four
-```
-venv) ➜  putting-demo-summit git:(main) ✗ python3 ble/connect.py -m localhost -g PL2B2418:golfball1
-INFO: Connected to: PL2B2418 (Address: 68720155-8DD9-AE6A-8855-881CF69A1F4E)
-INFO: Battery Level: 100%
-INFO: golfball1 application is running. Press Ctrl+C to exit...
-INFO: BLE Notification: {"data": 2, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 1.7, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 0, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": "ST_PUTT_STARTED", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 0.0, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": "ST_PUTT_NOT_COUNTED", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": "ST_READY", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 1, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": 1, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.8, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 0, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": "ST_PUTT_STARTED", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 0.0, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": "ST_PUTT_NOT_COUNTED", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": "ST_READY", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 1, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": 2, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 1.7, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 0, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": "ST_PUTT_STARTED", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 4, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 8, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 9, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.8, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 10, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.0, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": "ST_PUTT_STOPPING", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 11, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.8, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 0.0, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": "ST_BALL_STOPPED", "characteristic": "ballState"}
-INFO: ST_PUTT_COMPLETE detected. Attempting to toggle Ready state to wake the ball.
-INFO: BLE Notification: {"data": 1, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": "ST_READY", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": "ST_PUTT_COMPLETE", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 0, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 3, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 2.6, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 0, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": "ST_PUTT_STARTED", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 4, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.8, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 7, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 8, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 9, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 10, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.0, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": "ST_PUTT_STOPPING", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": "ST_BALL_STOPPED", "characteristic": "ballState"}
-INFO: ST_PUTT_COMPLETE detected. Attempting to toggle Ready state to wake the ball.
-INFO: BLE Notification: {"data": 1, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": "ST_READY", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": "ST_PUTT_COMPLETE", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 0, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 2, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 1.7, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 0, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": "ST_PUTT_STARTED", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 3, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.8, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 4, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 7, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.0, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": "ST_PUTT_STOPPING", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": "ST_BALL_STOPPED", "characteristic": "ballState"}
-INFO: ST_PUTT_COMPLETE detected. Attempting to toggle Ready state to wake the ball.
-INFO: BLE Notification: {"data": 1, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": "ST_READY", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": "ST_PUTT_COMPLETE", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 0, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 1, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.8, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 0, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": "ST_PUTT_STARTED", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 7, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 3.5, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 10, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 2.6, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 11, "characteristic": "ballRollCount"}
-INFO: BLE Notification: {"data": 0.8, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": 0.0, "characteristic": "Velocity"}
-INFO: BLE Notification: {"data": "ST_MAGNET_STOP", "characteristic": "ballState"}
-INFO: ST_PUTT_COMPLETE detected. Attempting to toggle Ready state to wake the ball.
-INFO: BLE Notification: {"data": 1, "characteristic": "Ready"}
-INFO: BLE Notification: {"data": "ST_READY", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": "ST_PUTT_COMPLETE", "characteristic": "ballState"}
-INFO: BLE Notification: {"data": 0, "characteristic": "ballRollCount"}
-```
-
-### Hole in two MQTT
-```
+(venv) ➜  putting-demo-summit git:(main) ✗ mosquitto_sub -h localhost -t "#" -v
 golfball/golfball1/battery {"battery_level": 100}
-golfball/golfball1/ballRollCount {"data": 1}
-golfball/golfball1/Velocity {"data": 0.8}
+golfball/golfball1/ballRollCount {"data": 2, "stroke": 0}
+golfball/golfball1/Velocity {"data": 1.7, "stroke": 0}
 golfball/golfball1/Ready {"data": 0}
-golfball/golfball1/ballState {"data": "ST_PUTT_STARTED"} <<<<<<<<<<<< FIRST PUTT
-golfball/golfball1/ballRollCount {"data": 3}
-golfball/golfball1/Velocity {"data": 1.7}
-golfball/golfball1/ballRollCount {"data": 4}
-golfball/golfball1/Velocity {"data": 0.8}
-golfball/golfball1/ballRollCount {"data": 7}
-golfball/golfball1/ballRollCount {"data": 8}
-golfball/golfball1/Velocity {"data": 0.0}
-golfball/golfball1/ballState {"data": "ST_PUTT_STOPPING"}
-golfball/golfball1/ballState {"data": "ST_BALL_STOPPED"}
+golfball/golfball1/ballState {"data": "ST_PUTT_STARTED", "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 7, "stroke": 1}
+golfball/golfball1/Velocity {"data": 2.6, "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 9, "stroke": 1}
+golfball/golfball1/Velocity {"data": 1.7, "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 11, "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 12, "stroke": 1}
+golfball/golfball1/Velocity {"data": 0.8, "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 13, "stroke": 1}
+golfball/golfball1/Velocity {"data": 0.0, "stroke": 1}
+golfball/golfball1/ballState {"data": "ST_PUTT_STOPPING", "stroke": 1}
+golfball/golfball1/ballState {"data": "ST_BALL_STOPPED", "stroke": 1}
 golfball/golfball1/Ready {"data": 1}
-golfball/golfball1/ballState {"data": "ST_READY"}
-golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE"} <<<<<<<<<<<< END OF PUTT ONE
-golfball/golfball1/ballRollCount {"data": 0}
-golfball/golfball1/ballRollCount {"data": 2}
-golfball/golfball1/Velocity {"data": 1.7}
+golfball/golfball1/ballState {"data": "ST_READY", "stroke": 1}
+golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE", "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 0, "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 2, "stroke": 1}
+golfball/golfball1/Velocity {"data": 1.7, "stroke": 1}
 golfball/golfball1/Ready {"data": 0}
-golfball/golfball1/ballState {"data": "ST_PUTT_STARTED"} <<<<<<<<<<<< SECOND PUTT
-golfball/golfball1/ballRollCount {"data": 7}
-golfball/golfball1/Velocity {"data": 2.6}
-golfball/golfball1/ballRollCount {"data": 10}
-golfball/golfball1/ballRollCount {"data": 12}
-golfball/golfball1/Velocity {"data": 1.7}
-golfball/golfball1/ballRollCount {"data": 13}
-golfball/golfball1/Velocity {"data": 0.8}
-golfball/golfball1/Velocity {"data": 0.0}
-golfball/golfball1/ballState {"data": "ST_PUTT_STOPPING"}
-golfball/golfball1/ballRollCount {"data": 15}
-golfball/golfball1/Velocity {"data": 1.7}
-golfball/golfball1/ballState {"data": "ST_MAGNET_STOP"} <<<<<<<<<<<< BALL LANDED IN THE CUP
+golfball/golfball1/ballState {"data": "ST_PUTT_STARTED", "stroke": 2}
+golfball/golfball1/ballRollCount {"data": 4, "stroke": 2}
+golfball/golfball1/ballRollCount {"data": 7, "stroke": 2}
+golfball/golfball1/Velocity {"data": 0.8, "stroke": 2}
+golfball/golfball1/Velocity {"data": 0.0, "stroke": 2}
+golfball/golfball1/ballState {"data": "ST_PUTT_STOPPING", "stroke": 2}
+golfball/golfball1/ballState {"data": "ST_BALL_STOPPED", "stroke": 2}
 golfball/golfball1/Ready {"data": 1}
-golfball/golfball1/ballState {"data": "ST_READY"}
-golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE"} <<<<<<<<<<<< END OF PUTT TWO
-```
-
-### Hole in three (with a NOT_COUNTED putt)
-```
-INFO: BLE Notification: ballState - ST_PUTT_STARTED
-INFO: BLE Notification: ballState - ST_PUTT_NOT_COUNTED
-INFO: BLE Notification: ballState - ST_READY
-INFO: BLE Notification: ballState - ST_PUTT_STARTED
-INFO: BLE Notification: ballState - ST_PUTT_STOPPING
-INFO: BLE Notification: ballState - ST_BALL_STOPPED
-INFO: BLE Notification: ballState - ST_PUTT_COMPLETE
-INFO: ST_PUTT_COMPLETE detected without ST_MAGNET_STOP. Toggling Ready state to wake the ball.
-INFO: BLE Notification: ballState - ST_READY
-INFO: BLE Notification: ballState - ST_PUTT_STARTED
-INFO: BLE Notification: ballState - ST_PUTT_STOPPING
-INFO: BLE Notification: ballState - ST_BALL_STOPPED
-INFO: BLE Notification: ballState - ST_PUTT_COMPLETE
-INFO: ST_PUTT_COMPLETE detected without ST_MAGNET_STOP. Toggling Ready state to wake the ball.
-INFO: BLE Notification: ballState - ST_READY
-INFO: BLE Notification: ballState - ST_PUTT_STARTED
-INFO: BLE Notification: ballState - ST_PUTT_NOT_COUNTED
-INFO: BLE Notification: ballState - ST_READY
-INFO: BLE Notification: ballState - ST_PUTT_STARTED
-INFO: BLE Notification: ballState - ST_PUTT_NOT_COUNTED
-INFO: BLE Notification: ballState - ST_READY
-INFO: BLE Notification: ballState - ST_PUTT_STARTED
-INFO: BLE Notification: ballState - ST_MAGNET_STOP
-INFO: ST_MAGNET_STOP detected. The golf ball has landed in the cup.
-INFO: BLE Notification: ballState - ST_PUTT_COMPLETE
-INFO: ST_MAGNET_STOP was previously encountered. Keeping Ready state as is.
-```
+golfball/golfball1/ballState {"data": "ST_READY", "stroke": 2}
+golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE", "stroke": 2}
+golfball/golfball1/ballRollCount {"data": 0, "stroke": 2}
+golfball/golfball1/ballRollCount {"data": 1, "stroke": 2}
+golfball/golfball1/Velocity {"data": 0.8, "stroke": 2}
+golfball/golfball1/Ready {"data": 0}
+golfball/golfball1/ballState {"data": "ST_PUTT_STARTED", "stroke": 3}
+golfball/golfball1/ballRollCount {"data": 2, "stroke": 3}
+golfball/golfball1/ballRollCount {"data": 4, "stroke": 3}
+golfball/golfball1/Velocity {"data": 1.7, "stroke": 3}
+golfball/golfball1/Velocity {"data": 0.0, "stroke": 3}
+golfball/golfball1/ballState {"data": "ST_MAGNET_STOP", "stroke": 3}
+golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE", "stroke": 3}
+golfball/golfball1/command new_player
+golfball/golfball1/Ready {"data": 1}
+golfball/golfball1/ballState {"data": "ST_READY", "stroke": 0}
+golfball/golfball1/ballRollCount {"data": 0, "stroke": 0}
+golfball/golfball1/ballRollCount {"data": 1, "stroke": 0}
+golfball/golfball1/Velocity {"data": 0.8, "stroke": 0}
+golfball/golfball1/Ready {"data": 0}
+golfball/golfball1/ballState {"data": "ST_PUTT_STARTED", "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 4, "stroke": 1}
+golfball/golfball1/Velocity {"data": 2.6, "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 9, "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 12, "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 14, "stroke": 1}
+golfball/golfball1/Velocity {"data": 1.7, "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 15, "stroke": 1}
+golfball/golfball1/Velocity {"data": 0.8, "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 16, "stroke": 1}
+golfball/golfball1/Velocity {"data": 0.0, "stroke": 1}
+golfball/golfball1/ballState {"data": "ST_PUTT_STOPPING", "stroke": 1}
+golfball/golfball1/ballState {"data": "ST_BALL_STOPPED", "stroke": 1}
+golfball/golfball1/Ready {"data": 1}
+golfball/golfball1/ballState {"data": "ST_READY", "stroke": 1}
+golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE", "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 0, "stroke": 1}
+golfball/golfball1/ballRollCount {"data": 1, "stroke": 1}
+golfball/golfball1/Velocity {"data": 0.8, "stroke": 1}
+golfball/golfball1/Ready {"data": 0}
+golfball/golfball1/ballState {"data": "ST_PUTT_STARTED", "stroke": 2}
+golfball/golfball1/ballRollCount {"data": 7, "stroke": 2}
+golfball/golfball1/Velocity {"data": 3.5, "stroke": 2}
+golfball/golfball1/ballRollCount {"data": 9, "stroke": 2}
+golfball/golfball1/Velocity {"data": 1.7, "stroke": 2}
+golfball/golfball1/ballRollCount {"data": 11, "stroke": 2}
+golfball/golfball1/Velocity {"data": 0.0, "stroke": 2}
+golfball/golfball1/ballState {"data": "ST_MAGNET_STOP", "stroke": 2}
+golfball/golfball1/ballState {"data": "ST_PUTT_COMPLETE", "stroke": 2}
