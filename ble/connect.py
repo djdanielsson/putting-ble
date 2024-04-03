@@ -162,11 +162,20 @@ async def handle_new_player_command(mqtt_client, client, friendly_name):
     await mqtt_client.subscribe(command_topic)
 
     async for message in mqtt_client.messages:
-        if message.payload.decode() == "new_player":
+        # Decode the message payload as JSON
+        try:
+            message_content = json.loads(message.payload.decode('utf-8'))
+        except json.JSONDecodeError:
+            logger.error(f"Received non-JSON message on {command_topic}")
+            continue  # Skip to the next message if the current one isn't JSON
+
+        # Check if the message contains the command "new_player"
+        if message_content.get("command") == "new_player":
             logger.info(f"New player command received for {friendly_name}.")
             # Set the Ready characteristic to signal the next player's turn
             await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
             logger.info(f"Set Ready for {friendly_name} for next player.")
+
 
 async def main():
     args = parse_args()
