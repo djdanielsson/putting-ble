@@ -42,6 +42,11 @@ CHARACTERISTIC_READY_UUID = "00000000-0000-1000-8000-00805f9b34f1"  # 'Ready' ch
 BATTERY_LEVEL_CHARACTERISTIC_UUID = "00002a19-0000-1000-8000-00805f9b34fb"  # Battery Level characteristic UUID
 DATA_TO_WRITE = bytearray([0x01])  # Data to enable notifications
 
+# Global variable to track if ST_MAGNET_STOP was encountered
+st_magnet_stop_encountered = False
+# Global variable to track strokes
+stroke_counter = 0
+
 # BLE characteristics of interest
 CHARACTERISTICS = {
     "00000000-0000-1000-8000-00805f9b34f3": "ballRollCount",
@@ -85,49 +90,56 @@ async def print_all_characteristic_values(client, friendly_name):
         except Exception as e:
             logger.error(f"Error reading {char_name}: {e}")
 
-# Global variable to track if ST_MAGNET_STOP was encountered
-st_magnet_stop_encountered = False
 
 async def notification_handler(sender, data, client, mqtt_client, friendly_name):
-    """Handle BLE notifications, publish to MQTT, and manage the Ready characteristic."""
-    global st_magnet_stop_encountered  # Use the global variable
+    global st_magnet_stop_encountered, stroke_counter
     characteristic_name = CHARACTERISTICS.get(sender.uuid, "Unknown")
+
+    # Default data_value for handling characteristics other than ballState
+    if characteristic_name == "Velocity":
+        data_value = data[1] / 10.0  # Convert to ft/sec
+    else:
+        data_value = data[1] if len(data) > 1 else data[0]  # Use the second value if available, else the first
 
     try:
         if characteristic_name == "ballState":
             state_index = data[0]  # Assuming the first byte is the state
             data_value = BALL_STATE_ENUM[state_index] if state_index < len(BALL_STATE_ENUM) else "UNKNOWN_STATE"
-            
-            logger.info(f"BLE Notification: {characteristic_name} - {data_value}")
+            if data_value == "ST_PUTT_STARTED":
+                stroke_counter += 1
+            elif data_value == "ST_PUTT_NOT_COUNTED":
+                stroke_counter = max(stroke_counter - 1, 0)  # Ensure counter doesn't go below 0
 
             if data_value == "ST_MAGNET_STOP":
                 logger.info("ST_MAGNET_STOP detected. The golf ball has landed in the cup.")
-                st_magnet_stop_encountered = True  # Set the flag to True
+                st_magnet_stop_encountered = True
+            elif data_value == "ST_PUTT_COMPLETE" and not st_magnet_stop_encountered:
+                logger.info("ST_PUTT_COMPLETE detected without ST_MAGNET_STOP. Toggling Ready state to wake the ball.")
+                await client.write_gatt_char(CHARACTERISTIC_READY_UUID, bytearray([0x00]))  # Set Ready to 0
+                await asyncio.sleep(0.5)
+                await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)  # Set Ready back to 1
 
-            elif data_value == "ST_PUTT_COMPLETE":
-                if not st_magnet_stop_encountered:
-                    # ST_PUTT_COMPLETE received without prior ST_MAGNET_STOP, toggle Ready state to wake the ball
-                    logger.info("ST_PUTT_COMPLETE detected without ST_MAGNET_STOP. Toggling Ready state to wake the ball.")
-                    await client.write_gatt_char(CHARACTERISTIC_READY_UUID, bytearray([0x00]))  # Set Ready to 0
-                    await asyncio.sleep(0.5)  # Short delay before setting Ready back to 1
-                    await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)  # Set Ready back to 1
-                else:
-                    # ST_MAGNET_STOP was encountered, so no need to toggle Ready state
-                    logger.info("ST_MAGNET_STOP was previously encountered. Keeping Ready state as is.")
-
-        elif characteristic_name == "Velocity":
-            data_value = data[1] / 10.0  # Convert to ft/sec
+        # Construct and send the MQTT message
+        if characteristic_name in ["ballState", "ballRollCount", "Velocity"]:
+            message = json.dumps({"data": data_value, "stroke": stroke_counter})
         else:
-            data_value = data[1] if len(data) > 1 else data[0]  # Use the second value if available, else the first
+            message = json.dumps({"data": data_value})
 
-        # Prepare the message containing only the data for MQTT
-        message = json.dumps({"data": data_value})
         mqtt_topic = f"golfball/{friendly_name}/{characteristic_name}"
-        
         await send_to_mqtt(mqtt_client, mqtt_topic, message)
+
+        # Log the message
+        logger.info(f"BLE Notification: {characteristic_name} - {message}")
+
+        # Reset the stroke counter and flag after sending the ST_MAGNET_STOP message
+        if data_value == "ST_MAGNET_STOP":
+            stroke_counter = 0
+            st_magnet_stop_encountered = False
 
     except Exception as e:
         logger.error(f"Error handling BLE notification for {characteristic_name}: {e}")
+
+
 
 def notification_callback(sender, data, client, mqtt_client, friendly_name):
     """Wrapper for the notification handler to enable asyncio task creation."""
