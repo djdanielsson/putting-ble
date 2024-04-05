@@ -32,6 +32,7 @@ import logging
 import argparse
 from bleak import BleakScanner, BleakClient, BleakError
 from aiomqtt import Client as AsyncMqttClient, MqttError
+from typing import Dict
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -69,8 +70,8 @@ BALL_STATE_ENUM = [
 def parse_args():
     parser = argparse.ArgumentParser(description='BLE MQTT Client Application')
     parser.add_argument('-m', '--mqtt-broker', type=str, required=True, help='MQTT broker address')
-    parser.add_argument('-g', '--golf-balls', type=str, required=True,
-                        help='Comma-separated list of device_name:friendly_name pairs')
+    parser.add_argument('-g', '--golfball', type=str, required=True,
+                        help='Device_name:friendly_name pair to identify and name the BLE device')
     return parser.parse_args()
 
 async def send_to_mqtt(client, topic, message):
@@ -130,6 +131,7 @@ async def notification_handler(sender, data, client, mqtt_client, friendly_name)
     except Exception as e:
         logger.error(f"Error handling BLE notification for {characteristic_name}: {e}")
 
+
 def notification_callback(sender, data, client, mqtt_client, friendly_name):
     """Wrapper for the notification handler to enable asyncio task creation."""
     asyncio.create_task(notification_handler(sender, data, client, mqtt_client, friendly_name))
@@ -179,38 +181,35 @@ async def handle_new_player_command(mqtt_client, client, friendly_name):
 
 async def main():
     args = parse_args()
-    mqtt_broker = args.mqtt_broker
-    golf_balls_list = args.golf_balls.split(',')
-    golf_balls = {item.split(':')[0]: item.split(':')[1] for item in golf_balls_list}
+    mqtt_broker: str = args.mqtt_broker
+    device_name, friendly_name = args.golfball.split(':')
 
-    for device_name, friendly_name in golf_balls.items():
-        device = await find_device_by_name(device_name)
-        if not device:
-            logger.error(f"Device with name {device_name} not found.")
-            continue
+    device = await find_device_by_name(device_name)
+    if not device:
+        logger.error(f"Device with name {device_name} not found.")
+        return
 
-        try:
-            async with BleakClient(device.address) as client, AsyncMqttClient(mqtt_broker) as mqtt_client:
-                logger.info(f"Connected to: {device.name} (Address: {device.address})")
+    try:
+        async with BleakClient(device.address) as client, AsyncMqttClient(mqtt_broker) as mqtt_client:
+            logger.info(f"Connected to: {device.name} (Address: {device.address})")
 
-                await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
-                await read_battery_level(client, mqtt_client, friendly_name)
+            await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
+            await read_battery_level(client, mqtt_client, friendly_name)
 
-                for uuid in CHARACTERISTICS:
-                    await client.start_notify(uuid, lambda s, d: notification_callback(s, d, client, mqtt_client, friendly_name))
+            for uuid in CHARACTERISTICS.keys():
+                await client.start_notify(uuid, lambda s, d: notification_callback(s, d, client, mqtt_client, friendly_name))
 
-                await handle_new_player_command(mqtt_client, client, friendly_name)
+            await handle_new_player_command(mqtt_client, client, friendly_name)
 
-                logger.info(f"{friendly_name} application is running. Press Ctrl+C to exit...")
-                await asyncio.Event().wait()
+            logger.info(f"{friendly_name} application is running. Press Ctrl+C to exit...")
+            await asyncio.Event().wait()
 
-        except BleakError as e:
-            logger.error(f"BLE error with {friendly_name}: {e}")
-        except MqttError as e:
-            logger.error(f"MQTT error with {friendly_name}: {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error with {friendly_name}: {e}")
+    except BleakError as e:
+        logger.error(f"BLE error with {friendly_name}: {e}")
+    except MqttError as e:
+        logger.error(f"MQTT error with {friendly_name}: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error with {friendly_name}: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
-
