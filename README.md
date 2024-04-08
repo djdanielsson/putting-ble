@@ -1,4 +1,4 @@
-# putting-demo-summit
+# putting-ble
 Demo material for Red Hat Summit demonstration with BLE golf ball
 
 `connect.py` is designed to connect to a BLE-enabled golf ball, write a command to activate data collection, and listen to notifications from various characteristics that provide information about the golf ball's movements and interactions
