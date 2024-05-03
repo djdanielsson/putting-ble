@@ -27,6 +27,7 @@ Example:
 """
 
 import asyncio
+import time
 import json
 import logging
 import argparse
@@ -164,6 +165,10 @@ async def handle_new_player_command(mqtt_client, client, friendly_name):
     await mqtt_client.subscribe(command_topic)
 
     async for message in mqtt_client.messages:
+        # Break the loop if the client is disconnected
+        if not client.is_connected:
+            break
+
         # Decode the message payload as JSON
         try:
             message_content = json.loads(message.payload.decode('utf-8'))
@@ -184,32 +189,36 @@ async def main():
     mqtt_broker: str = args.mqtt_broker
     device_name, friendly_name = args.golfball.split(':')
 
-    device = await find_device_by_name(device_name)
-    if not device:
-        logger.error(f"Device with name {device_name} not found.")
-        return
+    start_time = time.time()
+    while time.time() - start_time < 30 * 60:  # Retry for up to 30 minutes
+        device = await find_device_by_name(device_name)
+        if device:
+            try:
+                async with BleakClient(device.address) as client, AsyncMqttClient(mqtt_broker) as mqtt_client:
+                    logger.info(f"Connected to: {device.name} (Address: {device.address})")
 
-    try:
-        async with BleakClient(device.address) as client, AsyncMqttClient(mqtt_broker) as mqtt_client:
-            logger.info(f"Connected to: {device.name} (Address: {device.address})")
+                    await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
+                    await read_battery_level(client, mqtt_client, friendly_name)
 
-            await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
-            await read_battery_level(client, mqtt_client, friendly_name)
+                    for uuid in CHARACTERISTICS.keys():
+                        await client.start_notify(uuid, lambda s, d: notification_callback(s, d, client, mqtt_client, friendly_name))
 
-            for uuid in CHARACTERISTICS.keys():
-                await client.start_notify(uuid, lambda s, d: notification_callback(s, d, client, mqtt_client, friendly_name))
+                    await handle_new_player_command(mqtt_client, client, friendly_name)
 
-            await handle_new_player_command(mqtt_client, client, friendly_name)
+                    logger.info(f"{friendly_name} application is running. Press Ctrl+C to exit...")
 
-            logger.info(f"{friendly_name} application is running. Press Ctrl+C to exit...")
-            await asyncio.Event().wait()
+                    while client.is_connected:  # Check the connection status
+                        await asyncio.sleep(1)  # Check every second
 
-    except BleakError as e:
-        logger.error(f"BLE error with {friendly_name}: {e}")
-    except MqttError as e:
-        logger.error(f"MQTT error with {friendly_name}: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error with {friendly_name}: {e}")
+            except BleakError as e:
+                logger.error(f"BLE error with {friendly_name}: {e}")
+            except MqttError as e:
+                logger.error(f"MQTT error with {friendly_name}: {e}")
+            except Exception as e:
+                logger.error(f"Unexpected error with {friendly_name}: {e}")
+        else:
+            logger.error(f"Device with name {device_name} not found. Retrying in 15 seconds...")
+            await asyncio.sleep(15)
 
 if __name__ == "__main__":
     asyncio.run(main())
