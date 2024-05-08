@@ -94,23 +94,24 @@ async def notification_handler(sender, data, client, mqtt_client, friendly_name)
         data_value = data[1] if len(data) > 1 else data[0]
 
     try:
-        if characteristic_name == "ballState":
-            state_index = data[0]
-            data_value = BALL_STATE_ENUM[state_index] if state_index < len(BALL_STATE_ENUM) else "UNKNOWN_STATE"
-            
-            if data_value == "ST_PUTT_STARTED":
-                stroke_counter += 1
-            elif data_value == "ST_PUTT_NOT_COUNTED":
-                stroke_counter = max(stroke_counter - 1, 0)  # Ensure counter doesn't go below 0
-            
-            if data_value == "ST_MAGNET_STOP":
-                logger.info("ST_MAGNET_STOP detected. The golf ball has landed in the cup.")
-                st_magnet_stop_encountered = True
-            elif data_value == "ST_PUTT_COMPLETE" and not st_magnet_stop_encountered:
-                logger.info("ST_PUTT_COMPLETE detected without ST_MAGNET_STOP. Toggling Ready state to wake the ball.")
-                await client.write_gatt_char(CHARACTERISTIC_READY_UUID, bytearray([0x00]))  # Set Ready to 0
-                await asyncio.sleep(0.5)
-                await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)  # Set Ready back to 1
+        if data[1] != 0:
+            if characteristic_name == "ballState":
+                state_index = data[0]
+                data_value = BALL_STATE_ENUM[state_index] if state_index < len(BALL_STATE_ENUM) else "UNKNOWN_STATE"
+                
+                if data_value == "ST_PUTT_STARTED":
+                    stroke_counter += 1
+                elif data_value == "ST_PUTT_NOT_COUNTED":
+                    stroke_counter = max(stroke_counter - 1, 0)  # Ensure counter doesn't go below 0
+                
+                if data_value == "ST_MAGNET_STOP":
+                    logger.info("ST_MAGNET_STOP detected. The golf ball has landed in the cup.")
+                    st_magnet_stop_encountered = True
+                elif data_value == "ST_PUTT_COMPLETE" and not st_magnet_stop_encountered:
+                    logger.info("ST_PUTT_COMPLETE detected without ST_MAGNET_STOP. Toggling Ready state to wake the ball.")
+                    await client.write_gatt_char(CHARACTERISTIC_READY_UUID, bytearray([0x00]))  # Set Ready to 0
+                    await asyncio.sleep(0.5)
+                    await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)  # Set Ready back to 1
 
         # Construct and send the MQTT message
         if characteristic_name in ["ballState", "ballRollCount", "Velocity"]:
