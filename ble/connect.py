@@ -178,6 +178,8 @@ async def handle_new_player_command(mqtt_client, client, friendly_name):
 
         # Check if the message contains the command "new_player"
         if message_content.get("command") == "new_player":
+            stroke_counter = 0
+            st_magnet_stop_encountered = False
             logger.info(f"New player command received for {friendly_name}.")
             # Set the Ready characteristic to signal the next player's turn
             await client.write_gatt_char(CHARACTERISTIC_READY_UUID, DATA_TO_WRITE)
